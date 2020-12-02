@@ -34,17 +34,16 @@ import (
 	"github.com/gravitational/teleport/lib/services/suite"
 	"github.com/gravitational/teleport/lib/utils"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/gravitational/trace"
-	"github.com/jonboulle/clockwork"
 	"github.com/pborman/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/check.v1"
 )
 
-type CacheSuite struct {
-	clock clockwork.Clock
-}
+type CacheSuite struct{}
 
 var _ = check.Suite(&CacheSuite{})
 
@@ -53,7 +52,6 @@ func TestState(t *testing.T) { check.TestingT(t) }
 
 func (s *CacheSuite) SetUpSuite(c *check.C) {
 	utils.InitLoggerForTests(testing.Verbose())
-	s.clock = clockwork.NewRealClock()
 }
 
 // testPack contains pack of
@@ -61,7 +59,6 @@ func (s *CacheSuite) SetUpSuite(c *check.C) {
 type testPack struct {
 	dataDir      string
 	backend      *backend.Wrapper
-	clock        clockwork.Clock
 	eventsC      chan Event
 	cache        *Cache
 	cacheBackend backend.Backend
@@ -104,22 +101,21 @@ func (s *CacheSuite) newPackForNode(c *check.C) *testPack {
 }
 
 func (s *CacheSuite) newPack(c *check.C, setupConfig SetupConfigFn) *testPack {
-	pack, err := newPack(c.MkDir(), s.clock, setupConfig)
+	pack, err := newPack(c.MkDir(), setupConfig)
 	c.Assert(err, check.IsNil)
 	return pack
 }
 
 func (s *CacheSuite) newPackWithoutCache(c *check.C, setupConfig SetupConfigFn) *testPack {
-	pack, err := newPackWithoutCache(c.MkDir(), s.clock, setupConfig)
+	pack, err := newPackWithoutCache(c.MkDir(), setupConfig)
 	c.Assert(err, check.IsNil)
 	return pack
 }
 
 // newPackWithoutCache returns a new test pack without creating cache
-func newPackWithoutCache(dir string, clock clockwork.Clock, setupConfig SetupConfigFn) (*testPack, error) {
+func newPackWithoutCache(dir string, ssetupConfig SetupConfigFn) (*testPack, error) {
 	p := &testPack{
 		dataDir: dir,
-		clock:   clock,
 	}
 	bk, err := lite.NewWithConfig(context.TODO(), lite.Config{
 		Path:             p.dataDir,
@@ -155,8 +151,8 @@ func newPackWithoutCache(dir string, clock clockwork.Clock, setupConfig SetupCon
 }
 
 // newPack returns a new test pack or fails the test on error
-func newPack(dir string, clock clockwork.Clock, setupConfig func(c Config) Config) (*testPack, error) {
-	p, err := newPackWithoutCache(dir, clock, setupConfig)
+func newPack(dir string, setupConfig func(c Config) Config) (*testPack, error) {
+	p, err := newPackWithoutCache(dir, setupConfig)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -1580,7 +1576,7 @@ func (s *CacheSuite) TestAppServers(c *check.C) {
 // TestDatabaseServers tests that CRUD operations on database servers are
 // replicated from the backend to the cache.
 func TestDatabaseServers(t *testing.T) {
-	p, err := newPack(t.TempDir(), clockwork.NewFakeClock(), ForProxy)
+	p, err := newPack(t.TempDir(), ForProxy)
 	require.NoError(t, err)
 	defer p.Close()
 
@@ -1600,9 +1596,8 @@ func TestDatabaseServers(t *testing.T) {
 	// Check that the database server is now in the backend.
 	out, err := p.presenceS.GetDatabaseServers(context.Background(), defaults.Namespace)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(out))
-	server.SetResourceID(out[0].GetResourceID())
-	require.EqualValues(t, []services.DatabaseServer{server}, out)
+	require.Empty(t, cmp.Diff([]services.DatabaseServer{server}, out,
+		cmpopts.IgnoreFields(services.Metadata{}, "ID")))
 
 	// Wait until the information has been replicated to the cache.
 	select {
@@ -1615,9 +1610,8 @@ func TestDatabaseServers(t *testing.T) {
 	// Make sure the cache has a single database server in it.
 	out, err = p.cache.GetDatabaseServers(context.Background(), defaults.Namespace)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(out))
-	server.SetResourceID(out[0].GetResourceID())
-	require.EqualValues(t, []services.DatabaseServer{server}, out)
+	require.Empty(t, cmp.Diff([]services.DatabaseServer{server}, out,
+		cmpopts.IgnoreFields(services.Metadata{}, "ID")))
 
 	// Update the server and upsert it into the backend again.
 	server.SetExpiry(time.Now().Add(30 * time.Minute).UTC())
@@ -1628,9 +1622,8 @@ func TestDatabaseServers(t *testing.T) {
 	// update occurred).
 	out, err = p.presenceS.GetDatabaseServers(context.Background(), defaults.Namespace)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(out))
-	server.SetResourceID(out[0].GetResourceID())
-	require.EqualValues(t, []services.DatabaseServer{server}, out)
+	require.Empty(t, cmp.Diff([]services.DatabaseServer{server}, out,
+		cmpopts.IgnoreFields(services.Metadata{}, "ID")))
 
 	// Check that information has been replicated to the cache.
 	select {
@@ -1643,9 +1636,8 @@ func TestDatabaseServers(t *testing.T) {
 	// Make sure the cache has a single database server in it.
 	out, err = p.cache.GetDatabaseServers(context.Background(), defaults.Namespace)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(out))
-	server.SetResourceID(out[0].GetResourceID())
-	require.EqualValues(t, []services.DatabaseServer{server}, out)
+	require.Empty(t, cmp.Diff([]services.DatabaseServer{server}, out,
+		cmpopts.IgnoreFields(services.Metadata{}, "ID")))
 
 	// Remove all database servers from the backend.
 	err = p.presenceS.DeleteAllDatabaseServers(context.Background(), defaults.Namespace)

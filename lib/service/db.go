@@ -38,7 +38,7 @@ func (process *TeleportProcess) initDatabases() {
 	process.RegisterCriticalFunc("db.init", process.initDatabaseService)
 }
 
-func (process *TeleportProcess) initDatabaseService() error {
+func (process *TeleportProcess) initDatabaseService() (retErr error) {
 	log := logrus.WithField(trace.Component, teleport.Component(
 		teleport.ComponentDatabase, process.id))
 
@@ -114,6 +114,12 @@ func (process *TeleportProcess) initDatabaseService() error {
 	if err != nil {
 		return trace.Wrap(err)
 	}
+	defer func() {
+		if retErr != nil {
+			warnOnErr(asyncEmitter.Close())
+		}
+	}()
+
 	streamer, err := events.NewCheckingStreamer(events.CheckingStreamerConfig{
 		Inner: conn.Client,
 		Clock: process.Clock,
@@ -149,6 +155,11 @@ func (process *TeleportProcess) initDatabaseService() error {
 	if err := dbService.Start(); err != nil {
 		return trace.Wrap(err)
 	}
+	defer func() {
+		if retErr != nil {
+			warnOnErr(dbService.Close())
+		}
+	}()
 
 	// Create and start the agent pool.
 	agentPool, err := reversetunnel.NewAgentPool(process.ExitContext(),
@@ -168,6 +179,11 @@ func (process *TeleportProcess) initDatabaseService() error {
 	if err := agentPool.Start(); err != nil {
 		return trace.Wrap(err)
 	}
+	defer func() {
+		if retErr != nil {
+			agentPool.Stop()
+		}
+	}()
 
 	process.BroadcastEvent(Event{Name: DatabasesReady, Payload: nil})
 	log.Info("Database service has successfully started.")
@@ -183,6 +199,9 @@ func (process *TeleportProcess) initDatabaseService() error {
 		log.Info("Shutting down.")
 		if dbService != nil {
 			warnOnErr(dbService.Close())
+		}
+		if asyncEmitter != nil {
+			warnOnErr(asyncEmitter.Close())
 		}
 		if agentPool != nil {
 			agentPool.Stop()

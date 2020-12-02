@@ -1128,10 +1128,10 @@ func (a *ServerWithRoles) GenerateUserCerts(ctx context.Context, req proto.UserC
 		overrideRoleTTL:   a.hasBuiltinRole(string(teleport.RoleAdmin)),
 		routeToCluster:    req.RouteToCluster,
 		kubernetesCluster: req.KubernetesCluster,
-		dbServiceName:     req.RouteToDatabase.ServiceName,
+		dbService:         req.RouteToDatabase.ServiceName,
 		dbProtocol:        req.RouteToDatabase.Protocol,
-		dbUsername:        req.RouteToDatabase.Username,
-		dbDatabase:        req.RouteToDatabase.Database,
+		dbUser:            req.RouteToDatabase.Username,
+		dbName:            req.RouteToDatabase.Database,
 		checker:           checker,
 		traits:            traits,
 		activeRequests: services.RequestIDs{
@@ -2090,7 +2090,7 @@ func (a *ServerWithRoles) SignDatabaseCSR(ctx context.Context, req *proto.Databa
 	return a.authServer.SignDatabaseCSR(ctx, req)
 }
 
-// GenerateDatabaseCert generates a certificate used by a database
+// GenerateDatabaseCert generates a certificate used by a database service
 // to authenticate with the database instance
 func (a *ServerWithRoles) GenerateDatabaseCert(ctx context.Context, req *proto.DatabaseCertRequest) (*proto.DatabaseCertResponse, error) {
 	// This certificate can be requested only by a database service when

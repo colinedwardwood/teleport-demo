@@ -449,14 +449,18 @@ type certRequest struct {
 	appPublicAddr string
 	// appClusterName is the name of the cluster this application is in.
 	appClusterName string
-	// dbServiceName specifies the name of the database instance to encode.
-	dbServiceName string
-	// dbProtocol is the type of the database cert is being issued for.
+	// dbService identifies the name of the database service requests will
+	// be routed to.
+	dbService string
+	// dbProtocol specifies the protocol of the database a certificate will
+	// be issued for.
 	dbProtocol string
-	// dbUsername is the optional database user.
-	dbUsername string
-	// dbDatabase is the optional database name.
-	dbDatabase string
+	// dbUser is the optional database user which, if provided, will be used
+	// as a default username.
+	dbUser string
+	// dbName is the optional database name which, if provided, will be used
+	// as a default database.
+	dbName string
 }
 
 // GenerateUserTestCerts is used to generate user certificate, used internally for tests
@@ -540,7 +544,7 @@ func (a *Server) GenerateDatabaseTestCert(pub []byte, cluster, service, username
 			teleport.TraitLogins: {username},
 		}),
 		routeToCluster: cluster,
-		dbServiceName:  service,
+		dbService:      service,
 	})
 	if err != nil {
 		return nil, trace.Wrap(err)
@@ -677,10 +681,10 @@ func (a *Server) generateUserCert(req certRequest) (*certs, error) {
 		},
 		TeleportCluster: clusterName,
 		RouteToDatabase: tlsca.RouteToDatabase{
-			ServiceName: req.dbServiceName,
+			ServiceName: req.dbService,
 			Protocol:    req.dbProtocol,
-			Username:    req.dbUsername,
-			Database:    req.dbDatabase,
+			Username:    req.dbUser,
+			Database:    req.dbName,
 		},
 		DatabaseNames: dbNames,
 		DatabaseUsers: dbUsers,

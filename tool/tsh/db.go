@@ -102,7 +102,7 @@ func onDatabaseLogin(cf *CLIConf) {
 	if err != nil {
 		utils.FatalError(err)
 	}
-	err = pgservicefile.Add(tc.DatabaseService, cf.DatabaseUser, cf.DatabaseName, profile)
+	err = pgservicefile.Add(tc.DatabaseService, cf.DatabaseUser, cf.DatabaseName, *profile)
 	if err != nil {
 		utils.FatalError(err)
 	}

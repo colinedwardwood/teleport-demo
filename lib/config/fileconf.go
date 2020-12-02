@@ -844,9 +844,9 @@ type Database struct {
 	URI string `yaml:"uri"`
 	// CACertFile is an optional path to the database CA certificate.
 	CACertFile string `yaml:"ca_cert_file,omitempty"`
-	// Labels is a map of database static labels.
+	// StaticLabels is a map of database static labels.
 	StaticLabels map[string]string `yaml:"static_labels,omitempty"`
-	// Commands is a list of database dynamic labels.
+	// DynamicLabels is a list of database dynamic labels.
 	DynamicLabels []CommandLabel `yaml:"dynamic_labels,omitempty"`
 	// AWS contains AWS specific settings for RDS/Aurora databases.
 	AWS DatabaseAWS `yaml:"aws"`

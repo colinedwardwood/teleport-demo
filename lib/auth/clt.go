@@ -3002,7 +3002,7 @@ func (c *Client) GetDatabaseServers(ctx context.Context, namespace string, opts 
 	if err != nil {
 		return nil, trail.FromGRPC(err)
 	}
-	var servers []services.DatabaseServer
+	servers := make([]services.DatabaseServer, 0, len(resp.GetServers()))
 	for _, server := range resp.GetServers() {
 		servers = append(servers, server)
 	}

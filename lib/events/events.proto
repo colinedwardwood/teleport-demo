@@ -1103,7 +1103,7 @@ message DatabaseMetadata {
     string DatabaseService = 1 [ (gogoproto.jsontag) = "db_service" ];
     // DatabaseProtocol is the database type, e.g. postgres or mysql.
     string DatabaseProtocol = 2 [ (gogoproto.jsontag) = "db_protocol" ];
-    // URI is the database URI to connect to.
+    // DatabaseURI is the database URI to connect to.
     string DatabaseURI = 3 [ (gogoproto.jsontag) = "db_uri" ];
     // DatabaseName is the name of the database a user is connecting to.
     string DatabaseName = 4 [ (gogoproto.jsontag) = "db_name" ];
@@ -1119,13 +1119,13 @@ message DatabaseSessionStart {
     // User is a common user event metadata.
     UserMetadata User = 2
         [ (gogoproto.nullable) = false, (gogoproto.embed) = true, (gogoproto.jsontag) = "" ];
-    // SessionMetadata is a common event session metadata.
+    // Session is a common event session metadata.
     SessionMetadata Session = 3
         [ (gogoproto.nullable) = false, (gogoproto.embed) = true, (gogoproto.jsontag) = "" ];
-    // ServerMetadata is a common server metadata.
+    // Server is a common server metadata.
     ServerMetadata Server = 4
         [ (gogoproto.nullable) = false, (gogoproto.embed) = true, (gogoproto.jsontag) = "" ];
-    // ConnectionMetadata holds information about the connection.
+    // Connection holds information about the connection.
     ConnectionMetadata Connection = 5
         [ (gogoproto.nullable) = false, (gogoproto.embed) = true, (gogoproto.jsontag) = "" ];
     // Database contains database related metadata.

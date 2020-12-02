@@ -21,6 +21,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"text/template"
 
 	"github.com/gravitational/teleport/lib/client"
@@ -33,8 +34,8 @@ import (
 
 // Add updates Postgres connection service file at the default location with
 // the connection information for the provided profile.
-func Add(name, user, database string, profile *client.ProfileStatus) error {
-	serviceFile, err := Load("")
+func Add(name, user, database string, profile client.ProfileStatus) error {
+	serviceFile, err := Load()
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -42,7 +43,7 @@ func Add(name, user, database string, profile *client.ProfileStatus) error {
 	if err != nil {
 		return trace.Wrap(err)
 	}
-	err = serviceFile.Add(ConnectProfile{
+	err = serviceFile.Upsert(ConnectProfile{
 		Name:        name,
 		Host:        addr.Host(),
 		Port:        addr.Port(defaults.HTTPListenPort),
@@ -66,7 +67,7 @@ func Add(name, user, database string, profile *client.ProfileStatus) error {
 // Env returns environment variables for the provided Postgres service from
 // the default connection service file.
 func Env(name string) (map[string]string, error) {
-	serviceFile, err := Load("")
+	serviceFile, err := Load()
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -80,7 +81,7 @@ func Env(name string) (map[string]string, error) {
 // Delete deletes specified connection profile from the default Postgres
 // service file.
 func Delete(name string) error {
-	serviceFile, err := Load("")
+	serviceFile, err := Load()
 	if err != nil {
 		return trace.Wrap(err)
 	}
@@ -101,19 +102,19 @@ type ServiceFile struct {
 	path string
 }
 
-// Load loads Postgres connection service file from the provided path or the
-// default location if it's not provided.
-func Load(path string) (*ServiceFile, error) {
-	// If the file path wasn't provided, use the default location which
-	// is .pg_service.conf file in the user's home directory.
-	if path == "" {
-		// TODO(r0mant): Check PGSERVICEFILE and PGSYSCONFDIR env vars as well.
-		user, err := user.Current()
-		if err != nil {
-			return nil, trace.ConvertSystemError(err)
-		}
-		path = filepath.Join(user.HomeDir, pgServiceFile)
+// Load loads Postgres connection service file from the default location.
+func Load() (*ServiceFile, error) {
+	// Default location is .pg_service.conf file in the user's home directory.
+	// TODO(r0mant): Check PGSERVICEFILE and PGSYSCONFDIR env vars as well.
+	user, err := user.Current()
+	if err != nil {
+		return nil, trace.ConvertSystemError(err)
 	}
+	return LoadFromPath(filepath.Join(user.HomeDir, pgServiceFile))
+}
+
+// LoadFromPath loads Posrtgres connection service file from the specified path.
+func LoadFromPath(path string) (*ServiceFile, error) {
 	// Loose load will ignore file not found error.
 	iniFile, err := ini.LooseLoad(path)
 	if err != nil {
@@ -125,7 +126,7 @@ func Load(path string) (*ServiceFile, error) {
 	}, nil
 }
 
-// Add adds the provided connection profile to the service file and saves it.
+// Upsert adds the provided connection profile to the service file and saves it.
 //
 // The profile goes into a separate section with the name equal to the
 // name of the database that user is logged into and looks like this:
@@ -142,7 +143,7 @@ func Load(path string) (*ServiceFile, error) {
 // parameter:
 //
 //   $ psql "service=postgres <other parameters>"
-func (s *ServiceFile) Add(profile ConnectProfile) error {
+func (s *ServiceFile) Upsert(profile ConnectProfile) error {
 	section := s.iniFile.Section(profile.Name)
 	if section != nil {
 		s.iniFile.DeleteSection(profile.Name)
@@ -169,9 +170,12 @@ func (s *ServiceFile) Add(profile ConnectProfile) error {
 
 // Env returns the specified connection profile information as a set of
 // environment variables recognized by Postgres clients.
-func (s *ServiceFile) Env(name string) (map[string]string, error) {
-	section, err := s.iniFile.GetSection(name)
+func (s *ServiceFile) Env(serviceName string) (map[string]string, error) {
+	section, err := s.iniFile.GetSection(serviceName)
 	if err != nil {
+		if strings.Contains(err.Error(), "does not exist") {
+			return nil, trace.NotFound("service connection profile %q not found", serviceName)
+		}
 		return nil, trace.Wrap(err)
 	}
 	host, err := section.GetKey("host")

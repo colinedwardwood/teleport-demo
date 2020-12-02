@@ -347,8 +347,8 @@ var (
 	// postgresSSLRequest is always sent first by a Postgres client (e.g. psql)
 	// to check whether the server supports TLS.
 	postgresSSLRequest = []byte{0x0, 0x0, 0x0, 0x8, 0x4, 0xd2, 0x16, 0x2f}
-	// postgresCancelRequest is sent when a Postgres client requests cancel of
-	// a long-running query.
+	// postgresCancelRequest is sent when a Postgres client requests
+	// cancellation of a long-running query.
 	//
 	// TODO(r0mant): It is currently unsupported because it is sent over a
 	// separate plain connection, but we're detecting it anyway so it at
@@ -393,6 +393,6 @@ func detectProto(in []byte) (int, error) {
 	case bytes.HasPrefix(in, postgresSSLRequest), bytes.HasPrefix(in, postgresCancelRequest):
 		return ProtoPostgres, nil
 	default:
-		return ProtoUnknown, trace.BadParameter("failed to detect protocol by prefix: %#v", in)
+		return ProtoUnknown, trace.BadParameter("unknown protocol prefix: %#v", in)
 	}
 }

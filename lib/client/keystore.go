@@ -76,7 +76,7 @@ type LocalKeyStore interface {
 	DeleteKey(proxyHost, username string, opts ...KeyOption) error
 
 	// DeleteKeyOption deletes only secrets specified by the provided key
-	// options keeping user's SSH/TLS certificates and private ket intact.
+	// options keeping user's SSH/TLS certificates and private key intact.
 	DeleteKeyOption(proxyHost, username string, opts ...KeyOption) error
 
 	// DeleteKeys removes all session keys from disk.
@@ -121,7 +121,7 @@ type LocalKeyStore interface {
 //    |   └── foo-db                 --> Database access certs for user "foo"
 //    |       ├── root               --> Database access certs for cluster "root"
 //    │       │   ├── dbA-x509.pem   --> TLS cert for database service "dbA"
-//    │       │   └── dbB-x509.pem   --> TLS cert for database cluster "dbB"
+//    │       │   └── dbB-x509.pem   --> TLS cert for database service "dbB"
 //    │       └── leaf               --> Database access certs for cluster "leaf"
 //    │           └── dbC-x509.pem   --> TLS cert for database service "dbC"
 //    └── two.example.com
@@ -243,7 +243,7 @@ func (fs *FSLocalKeyStore) DeleteKey(host, username string, opts ...KeyOption) e
 }
 
 // DeleteKeyOption deletes only secrets specified by the provided key options
-// keeping user's SSH/TLS certificates and private ket intact.
+// keeping user's SSH/TLS certificates and private key intact.
 //
 // Useful when needing to log out of a specific service, like a particular
 // database proxy.

@@ -1235,7 +1235,7 @@ func TestDatabaseConfig(t *testing.T) {
 	tests := []struct {
 		inConfigString string
 		desc           string
-		outError       bool
+		outError       string
 	}{
 		{
 			desc: "valid database config",
@@ -1253,7 +1253,7 @@ db_service:
       command: ["uname", "-p"]
       period: 1h
 `,
-			outError: false,
+			outError: "",
 		},
 		{
 			desc: "missing database name",
@@ -1264,7 +1264,7 @@ db_service:
   - protocol: postgres
     uri: localhost:5432
 `,
-			outError: true,
+			outError: "empty database name",
 		},
 		{
 			desc: "unsupported database protocol",
@@ -1276,7 +1276,7 @@ db_service:
     protocol: unknown
     uri: localhost:5432
 `,
-			outError: true,
+			outError: `unsupported database "foo" protocol`,
 		},
 		{
 			desc: "missing database uri",
@@ -1287,7 +1287,7 @@ db_service:
   - name: foo
     protocol: postgres
 `,
-			outError: true,
+			outError: `invalid database "foo" address`,
 		},
 		{
 			desc: "invalid database uri (missing port)",
@@ -1299,7 +1299,7 @@ db_service:
     protocol: postgres
     uri: 192.168.1.1
 `,
-			outError: true,
+			outError: `invalid database "foo" address`,
 		},
 	}
 	for _, tt := range tests {
@@ -1308,8 +1308,9 @@ db_service:
 				ConfigString: base64.StdEncoding.EncodeToString([]byte(tt.inConfigString)),
 			}
 			err := Configure(&clf, service.MakeDefaultConfig())
-			if tt.outError {
+			if tt.outError != "" {
 				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.outError)
 			} else {
 				require.NoError(t, err)
 			}
@@ -1321,7 +1322,7 @@ func TestDatabaseFlags(t *testing.T) {
 	tests := []struct {
 		inFlags  CommandLineFlags
 		desc     string
-		outError bool
+		outError string
 	}{
 		{
 			desc: "valid database config",
@@ -1330,7 +1331,7 @@ func TestDatabaseFlags(t *testing.T) {
 				DatabaseProtocol: "postgres",
 				DatabaseURI:      "localhost:5432",
 			},
-			outError: false,
+			outError: "",
 		},
 		{
 			desc: "unsupported database protocol",
@@ -1339,7 +1340,7 @@ func TestDatabaseFlags(t *testing.T) {
 				DatabaseProtocol: "unknown",
 				DatabaseURI:      "localhost:5432",
 			},
-			outError: true,
+			outError: `unsupported database "foo" protocol`,
 		},
 		{
 			desc: "missing database uri",
@@ -1347,7 +1348,7 @@ func TestDatabaseFlags(t *testing.T) {
 				DatabaseName:     "foo",
 				DatabaseProtocol: "postgres",
 			},
-			outError: true,
+			outError: `invalid database "foo" address`,
 		},
 		{
 			desc: "invalid database uri (missing port)",
@@ -1356,14 +1357,15 @@ func TestDatabaseFlags(t *testing.T) {
 				DatabaseProtocol: "postgres",
 				DatabaseURI:      "localhost",
 			},
-			outError: true,
+			outError: `invalid database "foo" address`,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			err := Configure(&tt.inFlags, service.MakeDefaultConfig())
-			if tt.outError {
+			if tt.outError != "" {
 				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.outError)
 			} else {
 				require.NoError(t, err)
 			}

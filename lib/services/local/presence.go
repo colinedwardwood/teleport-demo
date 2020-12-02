@@ -1036,7 +1036,7 @@ func (s *PresenceService) DeleteAllKubeServices(ctx context.Context) error {
 // GetDatabaseServers returns all registered database proxy servers.
 func (s *PresenceService) GetDatabaseServers(ctx context.Context, namespace string, opts ...services.MarshalOption) ([]services.DatabaseServer, error) {
 	if namespace == "" {
-		return nil, trace.BadParameter("missing namespace")
+		return nil, trace.BadParameter("missing database server namespace")
 	}
 	startKey := backend.Key(dbServersPrefix, namespace)
 	result, err := s.GetRange(ctx, startKey, backend.RangeEnd(startKey), backend.NoLimit)
@@ -1096,12 +1096,24 @@ func (s *PresenceService) UpsertDatabaseServer(ctx context.Context, server servi
 
 // DeleteDatabaseServer removes the specified database proxy server.
 func (s *PresenceService) DeleteDatabaseServer(ctx context.Context, namespace, hostID, name string) error {
+	if namespace == "" {
+		return trace.BadParameter("missing database server namespace")
+	}
+	if hostID == "" {
+		return trace.BadParameter("missing database server host ID")
+	}
+	if name == "" {
+		return trace.BadParameter("missing database server name")
+	}
 	key := backend.Key(dbServersPrefix, namespace, hostID, name)
 	return s.Delete(ctx, key)
 }
 
 // DeleteAllDatabaseServers removes all registered database proxy servers.
 func (s *PresenceService) DeleteAllDatabaseServers(ctx context.Context, namespace string) error {
+	if namespace == "" {
+		return trace.BadParameter("missing database servers namespace")
+	}
 	startKey := backend.Key(dbServersPrefix, namespace)
 	return s.DeleteRange(ctx, startKey, backend.RangeEnd(startKey))
 }

@@ -134,9 +134,11 @@ type RouteToDatabase struct {
 	// It is embedded in identity so clients can understand what type
 	// of database this is without contacting server.
 	Protocol string
-	// Username is an optional database username.
+	// Username is an optional database username to serve as a default
+	// username to connect as.
 	Username string
-	// Database is an optional database name.
+	// Database is an optional database name to serve as a default
+	// database to connect to.
 	Database string
 }
 

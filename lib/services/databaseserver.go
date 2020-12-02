@@ -239,7 +239,7 @@ func (s *DatabaseServerV2) String() string {
 		s.GetName(), s.GetTeleportVersion(), s.GetStaticLabels())
 }
 
-// CheckAndSetDefaults checks and set default values for any missing fields.
+// CheckAndSetDefaults checks and sets default values for any missing fields.
 func (s *DatabaseServerV2) CheckAndSetDefaults() error {
 	if err := s.Metadata.CheckAndSetDefaults(); err != nil {
 		return trace.Wrap(err)
@@ -442,7 +442,7 @@ func (*DatabaseServerMarshalerImpl) MarshalDatabaseServer(s DatabaseServer, opts
 		}
 		return utils.FastMarshal(server)
 	}
-	return nil, trace.BadParameter("unrecognized database server version %v", s)
+	return nil, trace.BadParameter("unrecognized database server version %[1]T %[1]v", s)
 }
 
 // UnmarshalDatabaseServers unmarshals multiple database servers.

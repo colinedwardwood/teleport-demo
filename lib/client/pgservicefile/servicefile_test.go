@@ -21,13 +21,14 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/gravitational/trace"
 	"github.com/stretchr/testify/require"
 )
 
 func TestServiceFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), pgServiceFile)
 
-	serviceFile, err := Load(path)
+	serviceFile, err := LoadFromPath(path)
 	require.NoError(t, err)
 
 	profile := ConnectProfile{
@@ -42,7 +43,7 @@ func TestServiceFile(t *testing.T) {
 		SSLKey:      "key.pem",
 	}
 
-	err = serviceFile.Add(profile)
+	err = serviceFile.Upsert(profile)
 	require.NoError(t, err)
 
 	env, err := serviceFile.Env(profile.Name)
@@ -63,4 +64,5 @@ func TestServiceFile(t *testing.T) {
 
 	_, err = serviceFile.Env(profile.Name)
 	require.Error(t, err)
+	require.IsType(t, trace.NotFound(""), err)
 }

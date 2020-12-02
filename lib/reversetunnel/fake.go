@@ -52,7 +52,7 @@ type FakeRemoteSite struct {
 	// Name is the remote site name.
 	Name string
 	// ConnCh receives the connection when dialing this site.
-	ConnCh chan (net.Conn)
+	ConnCh chan net.Conn
 	// AccessPoint is the auth server client.
 	AccessPoint auth.AccessPoint
 }

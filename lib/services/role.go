@@ -983,7 +983,7 @@ func (r *RoleV3) CheckAndSetDefaults() error {
 	}
 	for key, val := range r.Spec.Allow.DatabaseLabels {
 		if key == Wildcard && !(len(val) == 1 && val[0] == Wildcard) {
-			return trace.BadParameter("select *:<val> is not supported")
+			return trace.BadParameter("selector *:<val> is not supported")
 		}
 	}
 	for i := range r.Spec.Allow.Rules {

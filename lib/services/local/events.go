@@ -742,11 +742,11 @@ func (p *databaseServerParser) parse(event backend.Event) (services.Resource, er
 		}
 		return &services.DatabaseServerV2{
 			Kind:    services.KindDatabaseServer,
-			SubKind: hostID, // Pass host ID via sub-kind field for the cache.
 			Version: services.V2,
 			Metadata: services.Metadata{
-				Name:      name,
-				Namespace: defaults.Namespace,
+				Name:        name,
+				Namespace:   defaults.Namespace,
+				Description: hostID, // Pass host ID via description field for the cache.
 			},
 		}, nil
 	case backend.OpPut:

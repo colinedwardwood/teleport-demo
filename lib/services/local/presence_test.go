@@ -152,6 +152,17 @@ func TestDatabaseServersCRUD(t *testing.T) {
 	server.SetResourceID(out[0].GetResourceID())
 	require.EqualValues(t, []services.DatabaseServer{server}, out)
 
+	// Make sure can't delete with empty namespace or host ID or name.
+	err = presence.DeleteDatabaseServer(ctx, server.GetNamespace(), server.GetHostID(), "")
+	require.Error(t, err)
+	require.IsType(t, trace.BadParameter(""), err)
+	err = presence.DeleteDatabaseServer(ctx, server.GetNamespace(), "", server.GetName())
+	require.Error(t, err)
+	require.IsType(t, trace.BadParameter(""), err)
+	err = presence.DeleteDatabaseServer(ctx, "", server.GetHostID(), server.GetName())
+	require.Error(t, err)
+	require.IsType(t, trace.BadParameter(""), err)
+
 	// Remove the server.
 	err = presence.DeleteDatabaseServer(ctx, server.GetNamespace(), server.GetHostID(), server.GetName())
 	require.NoError(t, err)
@@ -171,6 +182,11 @@ func TestDatabaseServersCRUD(t *testing.T) {
 		Name:    server.GetName(),
 		HostID:  server.GetHostID(),
 	}, lease)
+
+	// Make sure can't delete all with empty namespace.
+	err = presence.DeleteAllDatabaseServers(ctx, "")
+	require.Error(t, err)
+	require.IsType(t, trace.BadParameter(""), err)
 
 	// Delete all.
 	err = presence.DeleteAllDatabaseServers(ctx, server.GetNamespace())

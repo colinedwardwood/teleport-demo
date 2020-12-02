@@ -578,7 +578,7 @@ func StatusFor(profileDir, proxyHost, username string) (*ProfileStatus, error) {
 		return nil, trace.Wrap(err)
 	}
 	for _, profile := range append(others, active) {
-		if profile.Username == username {
+		if profile != nil && profile.Username == username {
 			return profile, nil
 		}
 	}
@@ -1825,6 +1825,9 @@ func (tc *TeleportClient) Logout() error {
 func (tc *TeleportClient) LogoutDatabase(dbName string) error {
 	if tc.localAgent == nil {
 		return nil
+	}
+	if dbName == "" {
+		return trace.BadParameter("please specify database name to log out of")
 	}
 	return tc.localAgent.keyStore.DeleteKeyOption(
 		tc.localAgent.proxyHost,

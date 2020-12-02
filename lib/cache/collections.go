@@ -1263,7 +1263,7 @@ func (s *databaseServer) processEvent(ctx context.Context, event services.Event)
 	case backend.OpDelete:
 		err := s.presenceCache.DeleteDatabaseServer(ctx,
 			event.Resource.GetMetadata().Namespace,
-			event.Resource.GetSubKind(), // Cache passes host ID via sub-kind field.
+			event.Resource.GetMetadata().Description, // Cache passes host ID via description field.
 			event.Resource.GetName())
 		if err != nil {
 			// Resource could be missing in the cache expired or not created,
