@@ -524,10 +524,23 @@ func (a *Server) GenerateUserAppTestCert(publicKey []byte, username string, ttl 
 	return certs.tls, nil
 }
 
+// DatabaseTestCertRequest combines parameters for generating test database
+// access certificate.
+type DatabaseTestCertRequest struct {
+	// PublicKey is the public key to sign.
+	PublicKey []byte
+	// Cluster is the Teleport cluster name.
+	Cluster string
+	// Username is the Teleport username.
+	Username string
+	// RouteToDatabase contains database routing information.
+	RouteToDatabase tlsca.RouteToDatabase
+}
+
 // GenerateDatabaseTestCert generates a database access certificate for the
 // provided parameters. Used only internally in tests.
-func (a *Server) GenerateDatabaseTestCert(pub []byte, cluster, service, username string, ttl time.Duration) ([]byte, error) {
-	user, err := a.Identity.GetUser(username, false)
+func (a *Server) GenerateDatabaseTestCert(req DatabaseTestCertRequest) ([]byte, error) {
+	user, err := a.Identity.GetUser(req.Username, false)
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
@@ -537,14 +550,17 @@ func (a *Server) GenerateDatabaseTestCert(pub []byte, cluster, service, username
 	}
 	certs, err := a.generateUserCert(certRequest{
 		user:      user,
-		publicKey: pub,
+		publicKey: req.PublicKey,
 		checker:   checker,
-		ttl:       ttl,
+		ttl:       time.Hour,
 		traits: wrappers.Traits(map[string][]string{
-			teleport.TraitLogins: {username},
+			teleport.TraitLogins: {req.Username},
 		}),
-		routeToCluster: cluster,
-		dbService:      service,
+		routeToCluster: req.Cluster,
+		dbService:      req.RouteToDatabase.ServiceName,
+		dbProtocol:     req.RouteToDatabase.Protocol,
+		dbUser:         req.RouteToDatabase.Username,
+		dbName:         req.RouteToDatabase.Database,
 	})
 	if err != nil {
 		return nil, trace.Wrap(err)

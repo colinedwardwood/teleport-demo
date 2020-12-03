@@ -124,8 +124,8 @@ func (p *Proxy) handleStartup(ctx context.Context, clientConn net.Conn) (*pgprot
 
 // proxyToSite starts proxying all traffic received from Postgres client
 // between this proxy and Teleport database service over reverse tunnel.
-func (p *Proxy) proxyToSite(ctx context.Context, clientConn, siteConn net.Conn, startupMessage *pgproto3.StartupMessage) error {
-	// Frontend acts as a client for the Posgres wire protocol.
+func (p *Proxy) proxyToSite(ctx context.Context, clientConn, siteConn net.Conn, startupMessage *pgproto3.StartupMessage) (retErr error) {
+	// Frontend acts as a client for the Postgres wire protocol.
 	frontend := pgproto3.NewFrontend(pgproto3.NewChunkReader(siteConn), siteConn)
 	// Pass the startup message along to the Teleport database server.
 	err := frontend.Send(startupMessage)

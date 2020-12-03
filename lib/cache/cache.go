@@ -1201,6 +1201,6 @@ func (c *Cache) GetDatabaseServers(ctx context.Context, namespace string, opts .
 	if err != nil {
 		return nil, trace.Wrap(err)
 	}
-	defer rg.release()
+	defer rg.Release()
 	return rg.presence.GetDatabaseServers(ctx, namespace, opts...)
 }

@@ -18,18 +18,12 @@ package db
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"fmt"
 	"net"
 	"testing"
-	"time"
 
 	"github.com/gravitational/teleport"
 	"github.com/gravitational/teleport/lib/auth"
-	"github.com/gravitational/teleport/lib/auth/proto"
-	"github.com/gravitational/teleport/lib/client"
 	"github.com/gravitational/teleport/lib/defaults"
 	"github.com/gravitational/teleport/lib/multiplexer"
 	"github.com/gravitational/teleport/lib/reversetunnel"
@@ -38,7 +32,6 @@ import (
 	"github.com/gravitational/teleport/lib/tlsca"
 	"github.com/gravitational/teleport/lib/utils"
 
-	"github.com/gravitational/trace"
 	"github.com/jackc/pgconn"
 	"github.com/jonboulle/clockwork"
 	"github.com/pborman/uuid"
@@ -147,11 +140,18 @@ func TestDatabaseAccess(t *testing.T) {
 			require.NoError(t, err)
 
 			// Try to connect to the database as this user.
-			pgConn, err := connectToPostgres(ctx, testCtx, connectConfig{
-				service: "test",
-				user:    test.user,
-				dbName:  test.dbName,
-				dbUser:  test.dbUser,
+			pgConn, err := postgres.MakeTestClient(ctx, postgres.TestClientConfig{
+				AuthClient: testCtx.authClient,
+				AuthServer: testCtx.authServer,
+				Address:    testCtx.mux.DB().Addr().String(),
+				Cluster:    testCtx.clusterName,
+				Username:   test.user,
+				RouteToDatabase: tlsca.RouteToDatabase{
+					ServiceName: "test",
+					Protocol:    defaults.ProtocolPostgres,
+					Username:    test.dbUser,
+					Database:    test.dbName,
+				},
 			})
 			if test.err != "" {
 				require.Error(t, err)
@@ -240,7 +240,8 @@ func setupTestContext(ctx context.Context, t *testing.T) *testContext {
 	require.NoError(t, err)
 
 	// Fake Postgres server that speaks part of its wire protocol.
-	postgresServer := setupPostgresServer(ctx, t, dbAuthClient)
+	postgresServer, err := postgres.MakeTestServer(dbAuthClient, "test", "")
+	require.NoError(t, err)
 
 	// Create a database server for the test database service.
 	dbServer := makeDatabaseServer("test", fmt.Sprintf("localhost:%v", postgresServer.Port()), hostID)
@@ -295,81 +296,6 @@ func setupTestContext(ctx context.Context, t *testing.T) *testContext {
 		authServer:     tlsServer.Auth(),
 		authClient:     dbAuthClient,
 	}
-}
-
-// setupPostgresServer creates a fake Postgres server to be used in tests.
-func setupPostgresServer(ctx context.Context, t *testing.T, authClient *auth.Client) *postgres.TestServer {
-	key, err := client.NewKey()
-	require.NoError(t, err)
-	csr, err := tlsca.GenerateCertificateRequestPEM(pkix.Name{CommonName: "localhost"}, key.Priv)
-	require.NoError(t, err)
-	resp, err := authClient.GenerateDatabaseCert(ctx,
-		&proto.DatabaseCertRequest{
-			CSR:        csr,
-			ServerName: "localhost",
-			TTL:        proto.Duration(time.Hour),
-		})
-	require.NoError(t, err)
-	cert, err := tls.X509KeyPair(resp.Cert, key.Priv)
-	require.NoError(t, err)
-	pool := x509.NewCertPool()
-	for _, ca := range resp.CACerts {
-		require.True(t, pool.AppendCertsFromPEM(ca))
-	}
-	postgresServer, err := postgres.NewTestServer(postgres.TestServerConfig{
-		TLSConfig: &tls.Config{
-			ClientCAs:    pool,
-			Certificates: []tls.Certificate{cert},
-		},
-	})
-	require.NoError(t, err)
-	return postgresServer
-}
-
-type connectConfig struct {
-	service string
-	user    string
-	dbName  string
-	dbUser  string
-}
-
-func connectToPostgres(ctx context.Context, testCtx *testContext, config connectConfig) (*pgconn.PgConn, error) {
-	// Client will be connecting directly to the multiplexer address.
-	pgconnConfig, err := pgconn.ParseConfig(fmt.Sprintf("postgres://%v@%v/?database=%v", config.dbUser, testCtx.mux.DB().Addr(), config.dbName))
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	key, err := client.NewKey()
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	// Generate client certificate for the Teleport user.
-	cert, err := testCtx.authServer.GenerateDatabaseTestCert(key.Pub, testCtx.clusterName, config.service, config.user, time.Hour)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	tlsCert, err := tls.X509KeyPair(cert, key.Priv)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	ca, err := testCtx.authClient.GetCertAuthority(services.CertAuthID{Type: services.HostCA, DomainName: testCtx.clusterName}, false)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	pool, err := services.CertPool(ca)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	pgconnConfig.TLSConfig = &tls.Config{
-		RootCAs:            pool,
-		Certificates:       []tls.Certificate{tlsCert},
-		InsecureSkipVerify: true,
-	}
-	pgConn, err := pgconn.ConnectConfig(ctx, pgconnConfig)
-	if err != nil {
-		return nil, trace.Wrap(err)
-	}
-	return pgConn, nil
 }
 
 func makeDatabaseServer(name, uri, hostID string) services.DatabaseServer {

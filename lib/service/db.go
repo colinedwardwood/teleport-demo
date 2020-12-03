@@ -186,7 +186,7 @@ func (process *TeleportProcess) initDatabaseService() (retErr error) {
 	}()
 
 	process.BroadcastEvent(Event{Name: DatabasesReady, Payload: nil})
-	log.Info("Database service has successfully started.")
+	log.Infof("Database service has successfully started: %v.", databaseServers)
 
 	// Block and wait while the server and agent pool are running.
 	if err := dbService.Wait(); err != nil {

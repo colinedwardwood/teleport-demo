@@ -277,11 +277,13 @@ func (s *Server) Wait() error {
 // authorization and dispatches to the appropriate database engine.
 func (s *Server) HandleConnection(conn net.Conn) {
 	log := s.WithField("addr", conn.RemoteAddr())
-	log.Debug("Accepted connection.", conn.RemoteAddr())
-	defer conn.Close()
+	log.Debug("Accepted connection.")
 	// Upgrade the connection to TLS since the other side of the reverse
 	// tunnel connection (proxy) will initiate a handshake.
 	tlsConn := tls.Server(conn, s.TLSConfig)
+	// Make sure to close the upgraded connection, not "conn", otherwise
+	// the other side may not detect that connection has closed.
+	defer tlsConn.Close()
 	// Perform the hanshake explicitly, normally it should be performed
 	// on the first read/write but when the connection is passed over
 	// reverse tunnel it doesn't happen for some reason.
